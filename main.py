@@ -114,17 +114,20 @@ async def chat(request: ChatRequest):
 if __name__ == "__main__":
     import uvicorn
 
-    def open_browser():
-        time.sleep(1.5)
-        webbrowser.open("http://localhost:8000")
+    port = int(os.environ.get("PORT", 8000))
+    is_render = os.environ.get("RENDER") is not None
 
-    threading.Thread(target=open_browser, daemon=True).start()
+    if not is_render:
+        def open_browser():
+            time.sleep(1.5)
+            webbrowser.open(f"http://localhost:{port}")
+        threading.Thread(target=open_browser, daemon=True).start()
 
-    print("=" * 50)
-    print("  AI English Voice Coach")
-    print("  Starting server at http://localhost:8000")
-    print("  Browser will open automatically.")
-    print("  Close this window to stop the app.")
-    print("=" * 50)
+        print("=" * 50)
+        print("  AI English Voice Coach")
+        print(f"  Starting server at http://localhost:{port}")
+        print("  Browser will open automatically.")
+        print("  Close this window to stop the app.")
+        print("=" * 50)
 
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=port)
