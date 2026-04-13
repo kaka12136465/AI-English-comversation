@@ -76,6 +76,12 @@ class ChatRequest(BaseModel):
     history: List[Message]
 
 
+class GenerateRequest(BaseModel):
+    difficulty: str = "Medium"
+    topic: str = ""
+    count: int = 5
+
+
 @app.get("/", response_class=HTMLResponse)
 async def root():
     return (STATIC_DIR / "index.html").read_text(encoding="utf-8")
@@ -109,6 +115,41 @@ async def chat(request: ChatRequest):
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@app.post("/generate")
+async def generate_sentences(request: GenerateRequest):
+    topic_line = f"Topic: {request.topic}" if request.topic.strip() else "Topic: general everyday conversation"
+    difficulty_guide = {
+        "Easy":   "Simple vocabulary, present/past tense, short sentences (8–12 words).",
+        "Medium": "Varied grammar, multiple clauses, moderate length (12–20 words).",
+        "Hard":   "Advanced vocabulary, complex structures, longer sentences (20+ words).",
+    }.get(request.difficulty, "")
+
+    prompt = (
+        f"Generate exactly {request.count} English sentences for speaking practice.\n"
+        f"Difficulty: {request.difficulty} — {difficulty_guide}\n"
+        f"{topic_line}\n\n"
+        "Return ONLY a valid JSON array of strings, with no extra text.\n"
+        'Example: ["Sentence one.", "Sentence two."]'
+    )
+    try:
+        response = client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=600,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = response.content[0].text.strip()
+        # Strip markdown code fences if present
+        if raw.startswith("```"):
+            raw = re.sub(r"^```[a-z]*\n?", "", raw)
+            raw = re.sub(r"\n?```$", "", raw)
+        sentences = json.loads(raw)
+        if not isinstance(sentences, list):
+            raise ValueError("Not a list")
+        return {"sentences": [str(s) for s in sentences]}
+    except Exception as e:
+        return {"error": str(e)}
 
 
 if __name__ == "__main__":
