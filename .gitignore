@@ -1,4 +1,7 @@
 .env
+functions/.env
+functions/.env.*
+!functions/.env.example
 dist/
 build/
 *.spec

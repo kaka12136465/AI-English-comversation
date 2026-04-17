@@ -5,6 +5,19 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "venv",
+        ".venv",
+        "__pycache__",
+        "*.pyc",
+        ".env"
+      ]
+    }
+  ],
   "hosting": {
     "public": "static",
     "ignore": [
@@ -13,6 +26,14 @@
       "**/node_modules/**"
     ],
     "rewrites": [
+      {
+        "source": "/chat",
+        "run": { "serviceId": "chat", "region": "asia-northeast1" }
+      },
+      {
+        "source": "/generate",
+        "run": { "serviceId": "generate", "region": "asia-northeast1" }
+      },
       {
         "source": "**",
         "destination": "/index.html"

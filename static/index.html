@@ -628,9 +628,11 @@ const FIREBASE_CONFIG = {
 };
 
 // ─── Backend URL ──────────────────────────────────────────────────
-// Local dev → relative paths; Firebase Hosting → Render backend
-const ON_FIREBASE = !['localhost', '127.0.0.1'].includes(location.hostname);
-const API_BASE    = ON_FIREBASE ? 'https://ai-english-coach.onrender.com' : '';
+// All requests use relative paths.
+// Firebase Hosting rewrites /chat → Cloud Function "chat"
+//                           /generate → Cloud Function "generate"
+// Local dev: run main.py directly (FastAPI on :8000)
+const API_BASE = '';
 
 // ─── Firestore client ─────────────────────────────────────────────
 let db = null;
@@ -850,7 +852,7 @@ async function handleSend(message) {
   aiSubtitle.classList.add('loading');
   let fullText = '';
   try {
-    const res = await fetch(API_BASE + '/chat', {
+    const res = await fetch('/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: message.trim(), history }),
     });
@@ -1282,7 +1284,7 @@ async function generateSentences() {
   resEl.innerHTML = '';
 
   try {
-    const res  = await fetch(API_BASE + '/generate', {
+    const res  = await fetch('/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ difficulty: diff, topic, count }),
     });
