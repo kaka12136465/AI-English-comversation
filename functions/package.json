@@ -1,0 +1,13 @@
+{
+  "name": "ai-english-coach-functions",
+  "description": "Cloud Functions for AI English Voice Coach",
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "firebase-functions": "^4.9.0",
+    "@anthropic-ai/sdk": "^0.24.0"
+  },
+  "private": true
+}

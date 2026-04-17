@@ -10,10 +10,8 @@
       "source": "functions",
       "codebase": "default",
       "ignore": [
-        "venv",
-        ".venv",
-        "__pycache__",
-        "*.pyc",
+        "node_modules",
+        ".git",
         ".env"
       ]
     }
@@ -28,11 +26,13 @@
     "rewrites": [
       {
         "source": "/chat",
-        "run": { "serviceId": "chat", "region": "asia-northeast1" }
+        "function": "chat",
+        "region": "asia-northeast1"
       },
       {
         "source": "/generate",
-        "run": { "serviceId": "generate", "region": "asia-northeast1" }
+        "function": "generate",
+        "region": "asia-northeast1"
       },
       {
         "source": "**",
