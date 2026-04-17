@@ -23,12 +23,27 @@ load_dotenv(RUNTIME_DIR / '.env')
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import anthropic
 import json
 from typing import List
 
 app = FastAPI()
+
+# ── CORS (allow Firebase Hosting + local dev) ──────────────────────────────
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://ai-english-conversation-c695c.web.app",
+        "https://ai-english-conversation-c695c.firebaseapp.com",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
+
 client = anthropic.Anthropic()
 
 STATIC_DIR = BUNDLE_DIR / 'static'

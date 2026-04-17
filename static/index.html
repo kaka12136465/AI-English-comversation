@@ -4,6 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI English Voice Coach</title>
+
+  <!-- Firebase SDK (CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; }
@@ -610,6 +615,89 @@
 "use strict";
 
 // ═══════════════════════════════════════════════════════════════════
+// FIREBASE INIT
+// ═══════════════════════════════════════════════════════════════════
+
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyC8VYPQmJFgx-4xgDZJbRRUy1SjPbfwPuI",
+  authDomain:        "ai-english-conversation-c695c.firebaseapp.com",
+  projectId:         "ai-english-conversation-c695c",
+  storageBucket:     "ai-english-conversation-c695c.firebasestorage.app",
+  messagingSenderId: "992752504370",
+  appId:             "1:992752504370:web:54ab4f30f82d058632762b",
+};
+
+// ─── Backend URL ──────────────────────────────────────────────────
+// Local dev → relative paths; Firebase Hosting → Render backend
+const ON_FIREBASE = !['localhost', '127.0.0.1'].includes(location.hostname);
+const API_BASE    = ON_FIREBASE ? 'https://ai-english-coach.onrender.com' : '';
+
+// ─── Firestore client ─────────────────────────────────────────────
+let db = null;
+
+// Each browser gets a stable session ID (UUID stored in localStorage)
+let SESSION_ID = localStorage.getItem('sessionId');
+if (!SESSION_ID) {
+  SESSION_ID = crypto.randomUUID();
+  localStorage.setItem('sessionId', SESSION_ID);
+}
+
+function sentencesRef() {
+  return db?.collection('sessions').doc(SESSION_ID).collection('sentences');
+}
+
+async function fsLoadSaved() {
+  if (!db) return;
+  try {
+    const snap = await sentencesRef().orderBy('savedAt').get();
+    savedSentences = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderSavedList();
+  } catch (e) {
+    console.warn('Firestore load failed, using localStorage', e);
+  }
+}
+
+async function fsSave(sentence) {
+  if (!db) {
+    // fallback
+    localStorage.setItem('savedSentences', JSON.stringify(savedSentences));
+    return;
+  }
+  try {
+    const ref = await sentencesRef().add({ ...sentence, savedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    return ref.id;
+  } catch (e) {
+    console.warn('Firestore save failed', e);
+    localStorage.setItem('savedSentences', JSON.stringify(savedSentences));
+  }
+}
+
+async function fsDelete(firestoreId) {
+  if (!db || !firestoreId) {
+    localStorage.setItem('savedSentences', JSON.stringify(savedSentences));
+    return;
+  }
+  try {
+    await sentencesRef().doc(firestoreId).delete();
+  } catch (e) {
+    console.warn('Firestore delete failed', e);
+  }
+}
+
+// ─── Bootstrap ───────────────────────────────────────────────────
+(async () => {
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.firestore();
+    await fsLoadSaved();
+  } catch (e) {
+    console.warn('Firebase init failed, using localStorage', e);
+    savedSentences = JSON.parse(localStorage.getItem('savedSentences') || '[]');
+    renderSavedList();
+  }
+})();
+
+// ═══════════════════════════════════════════════════════════════════
 // CONVERSATION MODE
 // ═══════════════════════════════════════════════════════════════════
 
@@ -762,7 +850,7 @@ async function handleSend(message) {
   aiSubtitle.classList.add('loading');
   let fullText = '';
   try {
-    const res = await fetch('/chat', {
+    const res = await fetch(API_BASE + '/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: message.trim(), history }),
     });
@@ -1159,12 +1247,13 @@ function renderSavedList() {
   });
 }
 
-function saveSentence(i, source, customItem) {
+async function saveSentence(i, source, customItem) {
   const item = source === 'builtin' ? SENTENCES[i] : customItem;
   if (!item) return;
   if (savedSentences.find(s => s.text === item.text)) { toast('Already saved!'); return; }
-  savedSentences.push({ text: item.text, level: item.level || 'Custom', source: 'saved' });
-  localStorage.setItem('savedSentences', JSON.stringify(savedSentences));
+  const entry = { text: item.text, level: item.level || 'Custom', source: 'saved' };
+  const fsId = await fsSave(entry);
+  savedSentences.push({ ...entry, id: fsId });
   renderSavedList();
   toast('Saved ★');
 }
@@ -1173,9 +1262,10 @@ function useSaved(i) {
   loadSentence({ ...savedSentences[i], source: 'saved', index: i });
 }
 
-function deleteSaved(i) {
+async function deleteSaved(i) {
+  const fsId = savedSentences[i]?.id;
   savedSentences.splice(i, 1);
-  localStorage.setItem('savedSentences', JSON.stringify(savedSentences));
+  await fsDelete(fsId);
   renderSavedList();
 }
 
@@ -1192,7 +1282,7 @@ async function generateSentences() {
   resEl.innerHTML = '';
 
   try {
-    const res  = await fetch('/generate', {
+    const res  = await fetch(API_BASE + '/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ difficulty: diff, topic, count }),
     });
@@ -1231,8 +1321,8 @@ function useGenerated(i) {
   loadSentence({ ...generatedSents[i] });
 }
 
-function saveGenerated(i) {
-  saveSentence(null, 'ai', generatedSents[i]);
+async function saveGenerated(i) {
+  await saveSentence(null, 'ai', generatedSents[i]);
 }
 
 // ── Library tab switching ────────────────────────────────────────
@@ -1265,6 +1355,8 @@ function esc(s) {
 }
 
 // ── Init ─────────────────────────────────────────────────────────
+// Built-in list and first sentence are rendered immediately.
+// Saved sentences are populated after Firestore loads (see Bootstrap above).
 renderBuiltinList();
 loadSentence({ ...SENTENCES[0], source: 'builtin', index: 0 });
 </script>

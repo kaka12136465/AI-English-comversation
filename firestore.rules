@@ -1,0 +1,17 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Each browser session gets its own saved sentences.
+    // sessionId is a UUID generated client-side and stored in localStorage.
+    match /sessions/{sessionId}/sentences/{sentenceId} {
+      allow read, write: if true;
+    }
+
+    // Block everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
